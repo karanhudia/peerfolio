@@ -48,7 +48,6 @@ export const reviewSchema = z.object({
   relationship: z.string().min(1, { message: "Please select your relationship to this person." }),
   rating: z.number().min(1).max(5, { message: "Please provide a rating between 1 and 5." }),
   content: z.string().min(20, { message: "Please provide a detailed review (minimum 20 characters)." }),
-  interactionDate: z.date({ required_error: "Please select when you interacted with this person." }),
   tags: z.array(z.string()).optional(),
 });
 

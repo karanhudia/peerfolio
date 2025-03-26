@@ -20,7 +20,7 @@ export async function createReview(values: z.infer<typeof reviewSchema>) {
     return { error: "Invalid fields. Please check your input." };
   }
   
-  const { linkedinUrl: rawUrl, personName, personTitle, isAnonymous, relationship, rating, content, interactionDate, tags } = validatedFields.data;
+  const { linkedinUrl: rawUrl, personName, personTitle, isAnonymous, relationship, rating, content, tags } = validatedFields.data;
   
   // Normalize LinkedIn URL
   const linkedinUrl = normalizeLinkedInUrl(rawUrl) || rawUrl;
@@ -75,7 +75,7 @@ export async function createReview(values: z.infer<typeof reviewSchema>) {
         rating,
         content,
         relationship,
-        interactionDate,
+        interactionDate: new Date(),
         isAnonymous,
         author: {
           connect: {
@@ -152,12 +152,12 @@ export async function getPersonByLinkedInUrl(linkedinUrl: string) {
       },
     });
     
-    // If person exists, just return them without trying to update name/title
+    // If person exists, just return them with the id field
     if (person) {
       return person;
     }
     
-    // If person doesn't exist in the database, just return the LinkedIn URL
+    // If person doesn't exist in the database, return object without id
     return {
       linkedinUrl: normalizedUrl,
       reviews: [],

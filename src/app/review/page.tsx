@@ -14,6 +14,8 @@ import { Select, SelectOption } from "@/components/ui/select";
 import { FormControl, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { StarRating } from "@/components/StarRating";
 import { normalizeLinkedInUrl } from "@/lib/linkedin-utils";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
 
 // Relationship options
 const relationshipOptions = [
@@ -39,6 +41,7 @@ const availableTags = [
 
 export default function ReviewPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const searchParams = useSearchParams();
   const initialUrlParam = searchParams.get("linkedin") || "";
   const initialLinkedInUrl = normalizeLinkedInUrl(initialUrlParam) || initialUrlParam;
@@ -68,7 +71,6 @@ export default function ReviewPage() {
       relationship: "",
       rating: 0,
       content: "",
-      interactionDate: new Date(),
       tags: [],
     },
   });
@@ -76,6 +78,13 @@ export default function ReviewPage() {
   const currentLinkedInUrl = watch("linkedinUrl");
   const currentRating = watch("rating");
   
+  // Check if user is authenticated
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth/login?redirect=/review");
+    }
+  }, [status, router]);
+
   // Check for LinkedIn URL in query params on initial load
   useEffect(() => {
     if (initialLinkedInUrl && initialLinkedInUrl.includes("linkedin.com/in/")) {
@@ -88,6 +97,9 @@ export default function ReviewPage() {
         try {
           const person = await getPersonByLinkedInUrl(initialLinkedInUrl);
           if (person && !person.error) {
+            // Check if this is an existing profile in our database (has an ID)
+            const isExistingProfile = !!person.id;
+            
             // Setup personInfo state based on what fields exist
             const personInfoData: { name?: string; title?: string } = {};
             
@@ -103,22 +115,26 @@ export default function ReviewPage() {
             
             setPersonInfo(personInfoData);
             
-            // Set appropriate message if needed
-            if (!person.name) {
-              setLinkedInError("Profile found but name is missing. Please enter a name below.");
+            // Set appropriate message based on profile status
+            if (isExistingProfile) {
+              if (!person.name) {
+                setLinkedInError("This profile exists in our database but needs a name. Please provide one below.");
+              }
+            } else {
+              setLinkedInError("New LinkedIn profile. Please complete the details below.");
             }
           } else {
             setPersonInfo(null);
             setValue("personName", "");
             setValue("personTitle", "");
-            setLinkedInError("Could not fetch profile information. Please continue with the review.");
+            setLinkedInError("Could not fetch profile information. Please enter the details manually.");
           }
         } catch (error) {
           console.error("Error fetching LinkedIn profile:", error);
           setPersonInfo(null);
           setValue("personName", "");
           setValue("personTitle", "");
-          setLinkedInError("Error fetching profile. Please continue with the review.");
+          setLinkedInError("Error fetching profile. Please enter the details manually.");
         } finally {
           setIsCheckingLinkedIn(false);
         }
@@ -143,6 +159,9 @@ export default function ReviewPage() {
       try {
         const person = await getPersonByLinkedInUrl(currentLinkedInUrl);
         if (person && !person.error) {
+          // Check if this is an existing profile in our database (has an ID)
+          const isExistingProfile = !!person.id;
+          
           // Setup personInfo state based on what fields exist
           const personInfoData: { name?: string; title?: string } = {};
           
@@ -158,22 +177,26 @@ export default function ReviewPage() {
           
           setPersonInfo(personInfoData);
           
-          // Set appropriate message if needed
-          if (!person.name) {
-            setLinkedInError("Profile found but name is missing. Please enter a name below.");
+          // Set appropriate message based on profile status
+          if (isExistingProfile) {
+            if (!person.name) {
+              setLinkedInError("This profile exists in our database but needs a name. Please provide one below.");
+            }
+          } else {
+            setLinkedInError("New LinkedIn profile. Please complete the details below.");
           }
         } else {
           setPersonInfo(null);
           setValue("personName", "");
           setValue("personTitle", "");
-          setLinkedInError("Could not fetch profile information. You can still submit your review.");
+          setLinkedInError("Could not fetch profile information. Please enter the details manually.");
         }
       } catch (error) {
         console.error("Error fetching LinkedIn profile:", error);
         setPersonInfo(null);
         setValue("personName", "");
         setValue("personTitle", "");
-        setLinkedInError("Error fetching profile. You can still submit your review.");
+        setLinkedInError("Error fetching profile. Please enter the details manually.");
       } finally {
         setIsCheckingLinkedIn(false);
       }
@@ -199,7 +222,7 @@ export default function ReviewPage() {
         setIsLoading(false);
         return;
       }
-
+      
       data.tags = selectedTags;
       const result = await createReview(data);
 
@@ -234,6 +257,39 @@ export default function ReviewPage() {
     setValue("rating", rating);
   };
 
+  // Show loading state while checking authentication
+  if (status === "loading") {
+    return (
+      <div className="container max-w-2xl py-10 text-center">
+        <h1 className="text-2xl font-bold mb-6">Write a Review</h1>
+        <div className="card p-6">
+          <p className="mb-4">Checking authentication status...</p>
+          <div className="animate-pulse flex justify-center">
+            <div className="h-2 w-24 bg-blue-200 rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated, show login prompt
+  if (status === "unauthenticated") {
+    return (
+      <div className="container max-w-2xl py-10">
+        <h1 className="text-2xl font-bold mb-6">Write a Review</h1>
+        <div className="card p-6 text-center">
+          <h2 className="text-xl font-medium mb-4">Authentication Required</h2>
+          <p className="mb-6">You need to be logged in to write a review.</p>
+          <Link href="/auth/login?redirect=/review">
+            <Button variant="enhanced" className="px-8 py-2">
+              Sign in to Continue
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container max-w-2xl py-10">
       <h1 className="text-2xl font-bold mb-6">Write a Review</h1>
@@ -256,201 +312,197 @@ export default function ReviewPage() {
       )}
       
       {!success && (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="card">
-            <h2 className="text-lg font-medium mb-4">Professional Information</h2>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+          <div className="card p-6">
+            <h2 className="text-lg font-medium mb-6">Professional Information</h2>
             
-            <FormControl>
-              <FormLabel htmlFor="linkedinUrl">LinkedIn Profile URL</FormLabel>
-              <Input
-                id="linkedinUrl"
-                placeholder="https://linkedin.com/in/username"
-                {...register("linkedinUrl")}
-                className={errors.linkedinUrl ? "border-red-500" : ""}
-                disabled={isLoading}
-              />
-              {isCheckingLinkedIn && (
-                <p className="text-blue-600 text-sm mt-1">Checking profile...</p>
-              )}
-              {linkedInError && (
-                <p className="text-amber-600 text-sm mt-1">{linkedInError}</p>
-              )}
-              {personInfo && personInfo.name && (
-                <div className="mt-2 p-3 bg-blue-50 rounded-md">
-                  <p className="font-medium">Profile found: {personInfo.name}</p>
-                  {personInfo.title && (
-                    <p className="text-sm text-gray-600">{personInfo.title}</p>
-                  )}
-                  <p className="text-xs mt-1 text-blue-600">
-                    This profile is already in our database.
-                  </p>
-                </div>
-              )}
-              {personInfo && !personInfo.name && personInfo.title && (
-                <div className="mt-2 p-3 bg-amber-50 rounded-md">
-                  <p className="text-sm text-gray-600">Position: {personInfo.title}</p>
-                  <p className="text-xs mt-1 text-amber-600">
-                    Please provide a name for this profile.
-                  </p>
-                </div>
-              )}
-              {personInfo && !personInfo.name && !personInfo.title && (
-                <div className="mt-2 p-3 bg-amber-50 rounded-md">
-                  <p className="text-sm text-amber-600">
-                    New profile. Please provide name and position details.
-                  </p>
-                </div>
-              )}
-              <FormMessage>{errors.linkedinUrl?.message}</FormMessage>
-            </FormControl>
-            
-            <FormControl>
-              <FormLabel htmlFor="personName">Person's Name</FormLabel>
-              <Input
-                id="personName"
-                placeholder="Enter the person's name"
-                {...register("personName")}
-                className={errors.personName ? "border-red-500" : ""}
-                disabled={isLoading || (personInfo && !!personInfo.name)}
-              />
-              {personInfo && personInfo.name ? (
-                <FormDescription>
-                  Name is automatically populated from existing profile and cannot be changed.
-                </FormDescription>
-              ) : (
-                <FormDescription>
-                  Please provide the person's full name.
-                </FormDescription>
-              )}
-              <FormMessage>{errors.personName?.message}</FormMessage>
-            </FormControl>
-            
-            <FormControl>
-              <FormLabel htmlFor="personTitle">Position / Title <span className="text-gray-500 text-sm">(Optional)</span></FormLabel>
-              <Input
-                id="personTitle"
-                placeholder="Enter the person's job title or position"
-                {...register("personTitle")}
-                className={errors.personTitle ? "border-red-500" : ""}
-                disabled={isLoading || (personInfo && !!personInfo.title)}
-              />
-              {personInfo && personInfo.title ? (
-                <FormDescription>
-                  Title is automatically populated from existing profile and cannot be changed.
-                </FormDescription>
-              ) : (
-                <FormDescription>
-                  E.g., "Software Engineer", "Product Manager", etc.
-                </FormDescription>
-              )}
-              <FormMessage>{errors.personTitle?.message}</FormMessage>
-            </FormControl>
-            
-            <FormControl>
-              <FormLabel htmlFor="relationship">Your Relationship</FormLabel>
-              <Select id="relationship" {...register("relationship")}>
-                <SelectOption value="">Select relationship type</SelectOption>
-                {relationshipOptions.map((option) => (
-                  <SelectOption key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectOption>
-                ))}
-              </Select>
-              {errors.relationship && (
-                <FormMessage>{errors.relationship.message}</FormMessage>
-              )}
-            </FormControl>
-
-            <FormControl>
-              <FormLabel htmlFor="rating">Rating</FormLabel>
-              <div className="my-2">
-                <StarRating 
-                  rating={currentRating} 
-                  onChange={handleRatingChange} 
-                  size="lg" 
+            <div className="space-y-5">
+              <FormControl>
+                <FormLabel htmlFor="linkedinUrl">LinkedIn Profile URL</FormLabel>
+                <Input
+                  id="linkedinUrl"
+                  placeholder="https://linkedin.com/in/username"
+                  {...register("linkedinUrl")}
+                  className={errors.linkedinUrl ? "border-red-500" : ""}
+                  disabled={isLoading}
                 />
-              </div>
-              {errors.rating && (
-                <FormMessage>{errors.rating.message}</FormMessage>
-              )}
-            </FormControl>
-
-            <FormControl>
-              <FormLabel htmlFor="interactionDate">When did you interact?</FormLabel>
-              <Input
-                id="interactionDate"
-                type="date"
-                {...register("interactionDate", {
-                  setValueAs: (value) => new Date(value),
-                })}
-              />
-              {errors.interactionDate && (
-                <FormMessage>{errors.interactionDate.message}</FormMessage>
-              )}
-            </FormControl>
-            
-            <FormControl>
-              <div className="flex items-start py-2">
-                <div className="flex items-center h-5">
-                  <input
-                    id="isAnonymous"
-                    type="checkbox"
-                    className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-blue-300"
-                    {...register("isAnonymous")}
-                  />
+                {isCheckingLinkedIn && (
+                  <p className="text-blue-600 text-sm mt-1">Checking profile...</p>
+                )}
+                {linkedInError && (
+                  <p className="text-amber-600 text-sm mt-1">{linkedInError}</p>
+                )}
+                {personInfo && personInfo.name && (
+                  <div className="mt-2 p-3 bg-blue-50 rounded-md">
+                    <p className="font-medium">Profile found: {personInfo.name}</p>
+                    {personInfo.title && (
+                      <p className="text-sm text-gray-600">{personInfo.title}</p>
+                    )}
+                    <p className="text-xs mt-1 text-blue-600">
+                      This profile already exists in our database.
+                    </p>
+                  </div>
+                )}
+                {linkedInError && !personInfo?.name && (
+                  <div className="mt-2 p-3 bg-amber-50 rounded-md">
+                    <p className="text-sm text-amber-600">
+                      {linkedInError}
+                    </p>
+                  </div>
+                )}
+                <FormMessage>{errors.linkedinUrl?.message}</FormMessage>
+              </FormControl>
+              
+              <FormControl>
+                <FormLabel htmlFor="personName">Person's Name</FormLabel>
+                <Input
+                  id="personName"
+                  placeholder="Enter the person's name"
+                  {...register("personName")}
+                  className={errors.personName ? "border-red-500" : ""}
+                  disabled={isLoading || (!!personInfo && !!personInfo.name)}
+                />
+                {personInfo && personInfo.name ? (
+                  <FormDescription>
+                    Name is automatically populated from existing profile and cannot be changed.
+                  </FormDescription>
+                ) : (
+                  <FormDescription>
+                    Please provide the person's full name.
+                  </FormDescription>
+                )}
+                <FormMessage>{errors.personName?.message}</FormMessage>
+              </FormControl>
+              
+              <FormControl>
+                <FormLabel htmlFor="personTitle">Position / Title <span className="text-gray-500 text-sm">(Optional)</span></FormLabel>
+                <Input
+                  id="personTitle"
+                  placeholder="Enter the person's job title or position"
+                  {...register("personTitle")}
+                  className={errors.personTitle ? "border-red-500" : ""}
+                  disabled={isLoading || (!!personInfo && !!personInfo.title)}
+                />
+                {personInfo && personInfo.title ? (
+                  <FormDescription>
+                    Title is automatically populated from existing profile and cannot be changed.
+                  </FormDescription>
+                ) : (
+                  <FormDescription>
+                    E.g., "Software Engineer", "Product Manager", etc.
+                  </FormDescription>
+                )}
+                <FormMessage>{errors.personTitle?.message}</FormMessage>
+              </FormControl>
+              
+              <FormControl>
+                <FormLabel htmlFor="relationship">Your Relationship</FormLabel>
+                <div className="mt-1">
+                  <Select id="relationship" {...register("relationship")} className="w-full">
+                    <SelectOption value="">Select relationship type</SelectOption>
+                    {relationshipOptions.map((option) => (
+                      <SelectOption key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectOption>
+                    ))}
+                  </Select>
                 </div>
-                <div className="ml-3 text-sm">
-                  <label htmlFor="isAnonymous" className="text-gray-600 font-medium">
-                    Post this review anonymously
-                  </label>
-                  <p className="text-gray-500 text-xs mt-1">
-                    Your name won't be displayed with this review. The review will still be associated with your account, but only you and admins can see that you wrote it.
-                  </p>
+                {errors.relationship && (
+                  <FormMessage>{errors.relationship.message}</FormMessage>
+                )}
+              </FormControl>
+
+              <FormControl>
+                <FormLabel htmlFor="rating">Rating</FormLabel>
+                <div className="mt-1 mb-4">
+                  <div className="cursor-pointer">
+                    <StarRating 
+                      rating={currentRating} 
+                      onChange={handleRatingChange} 
+                      size="lg" 
+                    />
+                  </div>
+                  
+                  {/* Improved rating scale with emojis and text labels */}
+                  <div className="flex mt-2">
+                    <div className="w-1/2 flex items-center gap-1">
+                      <span className="text-base">😞</span>
+                      <span className="text-sm text-gray-600">Negative</span>
+                    </div>
+                    <div className="w-1/2 flex items-center justify-end gap-1">
+                      <span className="text-sm text-gray-600">Positive</span>
+                      <span className="text-base">😊</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </FormControl>
+                {errors.rating && (
+                  <FormMessage>{errors.rating.message}</FormMessage>
+                )}
+              </FormControl>
 
-            <FormControl>
-              <FormLabel>Tags (Optional)</FormLabel>
-              <div className="flex flex-wrap gap-2">
-                {availableTags.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    className={`px-3 py-1.5 rounded-full text-sm whitespace-normal break-words ${
-                      selectedTags.includes(tag)
-                        ? "bg-blue-100 text-blue-700 border border-blue-300"
-                        : "bg-gray-100 text-gray-700 border border-gray-300"
-                    }`}
-                    onClick={() => toggleTag(tag)}
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-              <FormDescription>
-                Select tags that best describe this person&apos;s skills and attributes.
-              </FormDescription>
-            </FormControl>
+              <FormControl>
+                <div className="flex items-start py-3">
+                  <div className="flex items-center h-5 mt-0.5">
+                    <input
+                      id="isAnonymous"
+                      type="checkbox"
+                      className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-blue-300 focus:ring-offset-0"
+                      {...register("isAnonymous")}
+                    />
+                  </div>
+                  <div className="ml-3 text-sm">
+                    <label htmlFor="isAnonymous" className="text-gray-600 font-medium">
+                      Post this review anonymously
+                    </label>
+                    <p className="text-gray-500 text-xs mt-1">
+                      Your name won't be displayed with this review. The review will still be associated with your account, but only you and admins can see that you wrote it.
+                    </p>
+                  </div>
+                </div>
+              </FormControl>
 
-            <FormControl>
-              <FormLabel htmlFor="content">Your Review</FormLabel>
-              <Textarea
-                id="content"
-                rows={6}
-                placeholder="Please share your experience with this person. What were their strengths and areas for improvement? Your honest feedback helps others."
-                {...register("content")}
-              />
-              {errors.content && (
-                <FormMessage>{errors.content.message}</FormMessage>
-              )}
-            </FormControl>
+              <FormControl>
+                <FormLabel>Tags (Optional)</FormLabel>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {availableTags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      className={`px-3 py-1.5 rounded-full text-sm whitespace-normal break-words ${
+                        selectedTags.includes(tag)
+                          ? "bg-blue-100 text-blue-700 border border-blue-300"
+                          : "bg-gray-100 text-gray-700 border border-gray-300"
+                      }`}
+                      onClick={() => toggleTag(tag)}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+                <FormDescription className="mt-2">
+                  Select tags that best describe this person&apos;s skills and attributes.
+                </FormDescription>
+              </FormControl>
+
+              <FormControl>
+                <FormLabel htmlFor="content">Your Review</FormLabel>
+                <Textarea
+                  id="content"
+                  rows={6}
+                  placeholder="Please share your experience with this person. What were their strengths and areas for improvement? Your honest feedback helps others."
+                  {...register("content")}
+                />
+                {errors.content && (
+                  <FormMessage>{errors.content.message}</FormMessage>
+                )}
+              </FormControl>
+            </div>
           </div>
           
           <Button 
             type="submit" 
             variant="enhanced"
-            className="w-full" 
+            className="w-full py-3" 
             disabled={isLoading}
           >
             {isLoading ? "Submitting..." : "Submit Review"}

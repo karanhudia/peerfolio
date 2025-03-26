@@ -42,7 +42,7 @@ export default async function RootLayout({
           <ToastProvider>
             <MainNav user={user} />
             <main className="flex-1">{children}</main>
-            <footer className="border-t mt-10">
+            <footer className="border-t">
               <div className="container py-8">
                 <div className="flex flex-col md:flex-row justify-between items-center">
                   <div className="mb-4 md:mb-0">
