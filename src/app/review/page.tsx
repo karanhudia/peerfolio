@@ -449,7 +449,8 @@ export default function ReviewPage() {
           
           <Button 
             type="submit" 
-            className="w-full py-2.5 border border-blue-700 shadow-sm hover:shadow-md transition-all" 
+            variant="enhanced"
+            className="w-full" 
             disabled={isLoading}
           >
             {isLoading ? "Submitting..." : "Submit Review"}

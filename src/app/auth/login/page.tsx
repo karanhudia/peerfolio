@@ -95,9 +95,16 @@ export default function LoginPage() {
             )}
           </FormControl>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Signing in..." : "Sign In"}
-          </Button>
+          <div className="mt-6">
+            <Button 
+              type="submit" 
+              variant="enhanced"
+              className="w-full" 
+              disabled={isLoading}
+            >
+              {isLoading ? "Signing in..." : "Sign in"}
+            </Button>
+          </div>
         </form>
 
         <div className="mt-6 text-center">
