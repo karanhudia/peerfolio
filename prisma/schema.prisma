@@ -1,0 +1,135 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  seed     = "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication and account management
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  email          String    @unique
+  emailVerified  DateTime?
+  hashedPassword String?
+  image          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  role           Role      @default(USER)
+
+  accounts       Account[]
+  sessions       Session[]
+  reviews        Review[]  @relation("ReviewAuthor")
+  receivedReviews Review[] @relation("ReviewedPerson")
+  reports        Report[]
+}
+
+// Role for user permissions
+enum Role {
+  USER
+  ADMIN
+}
+
+// NextAuth Account model
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// NextAuth Session model
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Person model to store profile information of reviewed individuals
+model Person {
+  id            String   @id @default(cuid())
+  linkedinUrl   String   @unique
+  name          String?
+  title         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  reviews       Review[]
+}
+
+// Review model for user feedback on individuals
+model Review {
+  id          String   @id @default(cuid())
+  rating      Int
+  content     String   @db.Text
+  relationship String
+  interactionDate DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  isApproved  Boolean  @default(false)
+  
+  authorId    String
+  author      User     @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  
+  personId    String
+  person      Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  
+  reviewedUserId String?
+  reviewedUser   User?  @relation("ReviewedPerson", fields: [reviewedUserId], references: [id], onDelete: SetNull)
+  
+  tags        Tag[]
+  reports     Report[]
+}
+
+// Tag model for categorizing reviews
+model Tag {
+  id       String   @id @default(cuid())
+  name     String   @unique
+  reviews  Review[]
+}
+
+// Report model for flagging inappropriate reviews
+model Report {
+  id        String   @id @default(cuid())
+  reason    String
+  createdAt DateTime @default(now())
+  resolved  Boolean  @default(false)
+  
+  reporterId String
+  reporter   User    @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  
+  reviewId   String
+  review     Review  @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+}
+
+// VerificationToken model for email verification
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
