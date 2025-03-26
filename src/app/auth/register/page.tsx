@@ -10,7 +10,7 @@ import Link from "next/link";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FormControl, FormLabel, FormMessage } from "@/components/ui/form";
+import { FormControl, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 
 export default function RegisterPage() {
@@ -29,6 +29,7 @@ export default function RegisterPage() {
     defaultValues: {
       name: "",
       email: "",
+      linkedinUrl: "",
       password: "",
       confirmPassword: "",
       acceptTerms: false,
@@ -107,6 +108,22 @@ export default function RegisterPage() {
           </FormControl>
 
           <FormControl>
+            <FormLabel htmlFor="linkedinUrl">LinkedIn Profile URL</FormLabel>
+            <Input
+              id="linkedinUrl"
+              type="url"
+              placeholder="https://linkedin.com/in/username"
+              {...register("linkedinUrl")}
+            />
+            {errors.linkedinUrl && (
+              <FormMessage>{errors.linkedinUrl.message}</FormMessage>
+            )}
+            <FormDescription>
+              Your LinkedIn profile is required to verify your identity.
+            </FormDescription>
+          </FormControl>
+
+          <FormControl>
             <FormLabel htmlFor="password">Password</FormLabel>
             <Input
               id="password"
@@ -160,7 +177,11 @@ export default function RegisterPage() {
             </div>
           </FormControl>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button 
+            type="submit" 
+            className="w-full py-2.5 border border-blue-700 shadow-sm hover:shadow-md transition-all" 
+            disabled={isLoading}
+          >
             {isLoading ? "Creating account..." : "Sign Up"}
           </Button>
         </form>

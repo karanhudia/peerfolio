@@ -25,6 +25,7 @@ model User {
   emailVerified  DateTime?
   hashedPassword String?
   image          String?
+  linkedinUrl    String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   role           Role      @default(USER)
@@ -94,6 +95,7 @@ model Review {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   isApproved  Boolean  @default(false)
+  isAnonymous Boolean  @default(false)
   
   authorId    String
   author      User     @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)

@@ -12,7 +12,7 @@ export async function registerUser(values: z.infer<typeof registerSchema>) {
     return { error: "Invalid fields. Please check your input." };
   }
   
-  const { name, email, password, acceptTerms } = validatedFields.data;
+  const { name, email, linkedinUrl, password, acceptTerms } = validatedFields.data;
   
   // Ensure terms are accepted
   if (!acceptTerms) {
@@ -36,6 +36,7 @@ export async function registerUser(values: z.infer<typeof registerSchema>) {
       data: {
         name,
         email,
+        linkedinUrl,
         hashedPassword,
         termsAccepted: new Date(), // Store when they accepted terms
       },

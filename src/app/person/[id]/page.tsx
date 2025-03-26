@@ -138,7 +138,7 @@ export default async function PersonPage({ params }: { params: { id: string } })
                         </div>
                         
                         <p className="text-sm text-gray-500 mt-1">
-                          By {review.author.name || "Anonymous"} on {formatDate(review.createdAt)}
+                          By {review.isAnonymous ? "Anonymous" : (review.author.name || "User")} on {formatDate(review.createdAt)}
                         </p>
                       </div>
                       
