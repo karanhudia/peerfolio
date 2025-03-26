@@ -65,7 +65,7 @@ export default async function PersonPage({ params }: { params: { id: string } })
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 mr-1">
                   <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"></path>
                 </svg>
-                View LinkedIn
+                <span className="inline-block">View LinkedIn</span>
               </Link>
             </div>
             
@@ -91,7 +91,7 @@ export default async function PersonPage({ params }: { params: { id: string } })
                     {sortedTags.map(([tag, count]) => (
                       <span 
                         key={tag} 
-                        className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs"
+                        className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs whitespace-normal"
                       >
                         {tag} ({count})
                       </span>
@@ -109,7 +109,7 @@ export default async function PersonPage({ params }: { params: { id: string } })
                 Have you worked with this person? Help others by sharing your experience.
               </p>
               <Link href={`/review?linkedin=${encodeURIComponent(person.linkedinUrl)}`}>
-                <Button className="w-full">Write a Review</Button>
+                <Button className="w-full py-2.5 whitespace-normal">Write a Review</Button>
               </Link>
             </div>
           )}
@@ -128,7 +128,7 @@ export default async function PersonPage({ params }: { params: { id: string } })
               <div className="space-y-6">
                 {person.reviews.map((review) => (
                   <div key={review.id} className="border-b pb-6 last:border-b-0 last:pb-0">
-                    <div className="flex justify-between items-start mb-2">
+                    <div className="flex flex-col sm:flex-row justify-between items-start mb-2 gap-2">
                       <div>
                         <div className="flex items-center">
                           <StarRating rating={review.rating} readOnly size="sm" />

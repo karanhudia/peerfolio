@@ -26,6 +26,13 @@ export function StarRating({
     lg: "text-3xl",
   };
 
+  // Determine touch-friendly spacing based on size
+  const spacingClasses = {
+    sm: "mr-1",
+    md: "mr-1.5",
+    lg: "mr-2",
+  };
+
   const handleClick = (index: number) => {
     if (readOnly) return;
     
@@ -49,18 +56,25 @@ export function StarRating({
   const displayRating = hoverRating || currentRating || rating;
 
   return (
-    <div className="flex">
+    <div 
+      className="flex items-center" 
+      role={readOnly ? "presentation" : "radiogroup"}
+      aria-label={readOnly ? "Rating" : "Select a rating"}
+    >
       {[...Array(maxRating)].map((_, index) => (
         <span
           key={index}
           className={`${
             index < displayRating ? "text-yellow-400" : "text-gray-300"
-          } ${sizeClasses[size]} cursor-${readOnly ? "default" : "pointer"}`}
+          } ${sizeClasses[size]} ${spacingClasses[size]} ${!readOnly && "hover:scale-110 transition-transform"} cursor-${readOnly ? "default" : "pointer"} touch-manipulation`}
           onClick={() => handleClick(index)}
           onMouseEnter={() => handleMouseEnter(index)}
           onMouseLeave={handleMouseLeave}
-          role={readOnly ? "presentation" : "button"}
-          aria-label={readOnly ? undefined : `Rate ${index + 1} out of ${maxRating}`}
+          onTouchStart={!readOnly ? () => handleClick(index) : undefined}
+          role={readOnly ? "presentation" : "radio"}
+          aria-checked={index + 1 === displayRating}
+          aria-label={`${index + 1} out of ${maxRating} stars`}
+          tabIndex={readOnly ? -1 : 0}
         >
           ★
         </span>

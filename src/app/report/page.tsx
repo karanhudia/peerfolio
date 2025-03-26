@@ -72,7 +72,7 @@ export default function ReportPage() {
           <p className="text-gray-600 mb-4">
             No review ID was provided. Please navigate to a review to report it.
           </p>
-          <Button onClick={() => router.back()}>Go Back</Button>
+          <Button onClick={() => router.back()} className="py-2.5 px-4 whitespace-normal">Go Back</Button>
         </div>
       </div>
     );
@@ -119,18 +119,18 @@ export default function ReportPage() {
             )}
           </FormControl>
 
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <Button
               type="button"
               variant="outline"
               onClick={() => router.back()}
-              className="flex-1"
+              className="sm:flex-1 py-2 px-4 whitespace-normal"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="flex-1"
+              className="sm:flex-1 py-2 px-4 whitespace-normal"
               disabled={isLoading}
             >
               {isLoading ? "Submitting..." : "Submit Report"}

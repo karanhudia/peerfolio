@@ -122,7 +122,7 @@ export default async function ProfilePage() {
               <div className="space-y-4">
                 {myReviews.map((review) => (
                   <div key={review.id} className="border-b pb-4 last:border-b-0 last:pb-0">
-                    <div className="flex justify-between items-start">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
                       <div>
                         <Link 
                           href={`/person/${review.person.id}`}
@@ -142,7 +142,7 @@ export default async function ProfilePage() {
                     <p className="mt-2 line-clamp-2">
                       {review.content}
                     </p>
-                    <div className="mt-2 flex justify-between items-center">
+                    <div className="mt-2 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                       <span className="text-xs text-gray-500">
                         {review.isApproved ? "Approved" : "Pending approval"}
                       </span>
@@ -166,7 +166,7 @@ export default async function ProfilePage() {
               <div className="space-y-4">
                 {receivedReviews.map((review) => (
                   <div key={review.id} className="border-b pb-4 last:border-b-0 last:pb-0">
-                    <div className="flex justify-between items-start">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
                       <div>
                         <p className="font-medium">
                           {review.author.name || "Anonymous"}

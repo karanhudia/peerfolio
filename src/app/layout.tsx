@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { MainNav } from "@/components/MainNav";
@@ -11,6 +11,18 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "PeerFolio - Professional Reviews & Feedback",
   description: "The platform for reviewing and rating professionals based on personal experiences.",
+  applicationName: "PeerFolio",
+  authors: [{ name: "PeerFolio Team" }],
+  keywords: ["reviews", "professional", "feedback", "rating", "linkedin"],
+};
+
+// Configure viewport for responsive design
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: "#3b82f6",
 };
 
 export default async function RootLayout({
@@ -21,8 +33,8 @@ export default async function RootLayout({
   const user = await getCurrentUser();
   
   return (
-    <html lang="en">
-      <body className={`${inter.className} min-h-screen flex flex-col`}>
+    <html lang="en" className="h-full">
+      <body className={`${inter.className} min-h-screen flex flex-col antialiased`}>
         <SessionProvider>
           <MainNav user={user} />
           <main className="flex-1">{children}</main>

@@ -56,7 +56,7 @@ export default function SearchPage() {
         <h1 className="text-2xl font-bold mb-6">Find Professionals</h1>
 
         <div className="card mb-8">
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <Input
               type="text"
               placeholder="Search by name or title..."
@@ -65,7 +65,7 @@ export default function SearchPage() {
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               className="flex-1"
             />
-            <Button onClick={handleSearch} disabled={loading}>
+            <Button onClick={handleSearch} disabled={loading} className="py-2 whitespace-normal">
               {loading ? "Searching..." : "Search"}
             </Button>
           </div>
@@ -108,9 +108,9 @@ export default function SearchPage() {
                         </Link>
                         
                         {!isSessionLoading && session?.user && (
-                          <div className="ml-4">
+                          <div className="ml-4 flex-shrink-0">
                             <Link href={`/review?linkedin=${encodeURIComponent(person.linkedinUrl)}`}>
-                              <Button variant="outline" size="sm">
+                              <Button variant="outline" size="sm" className="whitespace-normal text-center min-w-[100px]">
                                 Write a Review
                               </Button>
                             </Link>
@@ -129,7 +129,9 @@ export default function SearchPage() {
                 </p>
                 <div className="mt-4">
                   <Link href="/discover">
-                    <Button variant="outline">Browse All Professionals</Button>
+                    <Button variant="outline" className="py-2 px-4 whitespace-normal">
+                      Browse All Professionals
+                    </Button>
                   </Link>
                 </div>
               </div>

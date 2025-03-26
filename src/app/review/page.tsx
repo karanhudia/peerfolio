@@ -286,7 +286,7 @@ export default function ReviewPage() {
                   <button
                     key={tag}
                     type="button"
-                    className={`px-3 py-1 rounded-full text-sm ${
+                    className={`px-3 py-1.5 rounded-full text-sm whitespace-normal break-words ${
                       selectedTags.includes(tag)
                         ? "bg-blue-100 text-blue-700 border border-blue-300"
                         : "bg-gray-100 text-gray-700 border border-gray-300"
@@ -316,7 +316,7 @@ export default function ReviewPage() {
             </FormControl>
           </div>
           
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full py-2.5" disabled={isLoading}>
             {isLoading ? "Submitting..." : "Submit Review"}
           </Button>
         </form>
