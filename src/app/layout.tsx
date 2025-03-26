@@ -5,6 +5,7 @@ import { MainNav } from "@/components/MainNav";
 import { Footer } from "@/components/Footer";
 import { getCurrentUser } from "@/lib/session";
 import { SessionProvider } from "@/components/SessionProvider";
+import { Analytics } from "@vercel/analytics/react";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -39,6 +40,7 @@ export default async function RootLayout({
           <MainNav user={user} />
           <main className="flex-1">{children}</main>
           <Footer />
+          <Analytics />
         </SessionProvider>
       </body>
     </html>
