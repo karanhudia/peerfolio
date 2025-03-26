@@ -28,6 +28,7 @@ model User {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   role           Role      @default(USER)
+  termsAccepted  DateTime?
 
   accounts       Account[]
   sessions       Session[]

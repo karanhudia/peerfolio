@@ -14,6 +14,9 @@ export const registerSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
   password: z.string().min(8, { message: "Password must be at least 8 characters." }),
   confirmPassword: z.string().min(8, { message: "Please confirm your password." }),
+  acceptTerms: z.literal(true, {
+    errorMap: () => ({ message: "You must accept the Terms of Service and Privacy Policy to register." }),
+  }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match.",
   path: ["confirmPassword"],
