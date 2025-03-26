@@ -5,14 +5,19 @@ import { User } from "next-auth";
 import { Button } from "./ui/button";
 import { useState, useEffect } from "react";
 import { useIsSmallScreen } from "@/hooks/useMediaQuery";
+import { useSession, signOut } from "next-auth/react";
 
 interface MainNavProps {
   user: User | null;
 }
 
-export function MainNav({ user }: MainNavProps) {
+export function MainNav({ user: serverUser }: MainNavProps) {
+  const { data: sessionData } = useSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const isSmallScreen = useIsSmallScreen();
+  
+  // Use client-side session if available, fall back to server user
+  const user = sessionData?.user || serverUser;
   
   // Close mobile menu when screen size changes to desktop
   useEffect(() => {
@@ -71,11 +76,13 @@ export function MainNav({ user }: MainNavProps) {
               <Link href="/profile" className="text-sm text-gray-600 hover:text-primary">
                 Profile
               </Link>
-              <form action="/api/auth/signout" method="post">
-                <Button variant="outline" size="sm" type="submit">
-                  Sign Out
-                </Button>
-              </form>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => signOut({ callbackUrl: "/" })}
+              >
+                Sign Out
+              </Button>
             </>
           ) : (
             <>
@@ -157,11 +164,16 @@ export function MainNav({ user }: MainNavProps) {
                 >
                   Profile
                 </Link>
-                <form action="/api/auth/signout" method="post" className="py-2">
-                  <Button variant="outline" size="sm" type="submit" className="w-full px-4 py-2">
+                <div className="py-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full px-4 py-2"
+                    onClick={() => signOut({ callbackUrl: "/" })}
+                  >
                     Sign Out
                   </Button>
-                </form>
+                </div>
               </>
             ) : (
               <div className="flex flex-col space-y-2 pt-2">

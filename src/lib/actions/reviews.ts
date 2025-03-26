@@ -75,7 +75,6 @@ export async function createReview(values: z.infer<typeof reviewSchema>) {
         rating,
         content,
         relationship,
-        interactionDate: new Date(),
         isAnonymous,
         author: {
           connect: {

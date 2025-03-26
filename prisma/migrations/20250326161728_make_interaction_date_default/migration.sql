@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Review" ALTER COLUMN "interactionDate" SET DEFAULT CURRENT_TIMESTAMP;
