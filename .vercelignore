@@ -1,0 +1,3 @@
+# Exclude generated Prisma files to force regeneration during build
+node_modules/.prisma
+node_modules/@prisma/client 
