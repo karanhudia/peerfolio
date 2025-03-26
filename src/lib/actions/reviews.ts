@@ -5,7 +5,7 @@ import { reviewSchema, reportSchema } from "@/lib/validations";
 import { z } from "zod";
 import { getSession } from "@/lib/session";
 import { revalidatePath } from "next/cache";
-import { normalizeLinkedInUrl, generateProfileInfoFromUrl } from "@/lib/linkedin-utils";
+import { normalizeLinkedInUrl } from "@/lib/linkedin-utils";
 
 export async function createReview(values: z.infer<typeof reviewSchema>) {
   const session = await getSession();
@@ -20,7 +20,7 @@ export async function createReview(values: z.infer<typeof reviewSchema>) {
     return { error: "Invalid fields. Please check your input." };
   }
   
-  const { linkedinUrl: rawUrl, relationship, rating, content, interactionDate, tags } = validatedFields.data;
+  const { linkedinUrl: rawUrl, personName, personTitle, isAnonymous, relationship, rating, content, interactionDate, tags } = validatedFields.data;
   
   // Normalize LinkedIn URL
   const linkedinUrl = normalizeLinkedInUrl(rawUrl) || rawUrl;
@@ -33,16 +33,39 @@ export async function createReview(values: z.infer<typeof reviewSchema>) {
       },
     });
     
-    // If not, create a new person record with generated info
+    // If not, create a new person record with the provided name or generated info
     if (!person) {
-      const profileInfo = generateProfileInfoFromUrl(linkedinUrl);
+      // Use provided name and title
+      let name = personName;
+      let title = personTitle || undefined;
       
       person = await prisma.person.create({
         data: {
           linkedinUrl,
-          name: profileInfo?.name,
-          title: profileInfo?.title,
+          name,
+          title,
         },
+      });
+    }
+    // If person exists but doesn't have a name and personName is provided, update it
+    else if (!person.name && personName) {
+      const updateData: any = { name: personName };
+      
+      // If person doesn't have a title and personTitle is provided, update that too
+      if (!person.title && personTitle) {
+        updateData.title = personTitle;
+      }
+      
+      person = await prisma.person.update({
+        where: { id: person.id },
+        data: updateData
+      });
+    }
+    // If person exists, has a name, but no title and personTitle is provided, update the title
+    else if (person.name && !person.title && personTitle) {
+      person = await prisma.person.update({
+        where: { id: person.id },
+        data: { title: personTitle }
       });
     }
     
@@ -53,6 +76,7 @@ export async function createReview(values: z.infer<typeof reviewSchema>) {
         content,
         relationship,
         interactionDate,
+        isAnonymous,
         author: {
           connect: {
             id: session.user.id,
@@ -128,53 +152,16 @@ export async function getPersonByLinkedInUrl(linkedinUrl: string) {
       },
     });
     
-    // If person exists but doesn't have a name or title, try to generate it from the URL
-    if (person && (!person.name || !person.title)) {
-      const profileInfo = generateProfileInfoFromUrl(normalizedUrl);
-      
-      if (profileInfo) {
-        // Update the person with the generated information
-        person = await prisma.person.update({
-          where: { id: person.id },
-          data: {
-            name: person.name || profileInfo.name,
-            title: person.title || profileInfo.title,
-          },
-          include: {
-            reviews: {
-              where: { isApproved: true },
-              include: {
-                author: {
-                  select: {
-                    id: true,
-                    name: true,
-                    image: true,
-                  },
-                },
-                tags: true,
-              },
-              orderBy: { createdAt: "desc" },
-            },
-          },
-        });
-      }
+    // If person exists, just return them without trying to update name/title
+    if (person) {
+      return person;
     }
     
-    // If person doesn't exist in the database, return generated profile info
-    if (!person) {
-      const profileInfo = generateProfileInfoFromUrl(normalizedUrl);
-      
-      if (profileInfo) {
-        return {
-          linkedinUrl: normalizedUrl,
-          name: profileInfo.name,
-          title: profileInfo.title,
-          reviews: [],
-        };
-      }
-    }
-    
-    return person;
+    // If person doesn't exist in the database, just return the LinkedIn URL
+    return {
+      linkedinUrl: normalizedUrl,
+      reviews: [],
+    };
   } catch (error) {
     console.error("Error fetching person:", error);
     return null;

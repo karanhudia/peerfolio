@@ -62,6 +62,9 @@ export default function ReviewPage() {
     resolver: zodResolver(reviewSchema),
     defaultValues: {
       linkedinUrl: initialLinkedInUrl,
+      personName: "",
+      personTitle: "",
+      isAnonymous: false,
       relationship: "",
       rating: 0,
       content: "",
@@ -85,15 +88,36 @@ export default function ReviewPage() {
         try {
           const person = await getPersonByLinkedInUrl(initialLinkedInUrl);
           if (person && !person.error) {
-            setPersonInfo({
-              name: person.name || "",
-              title: person.title || "",
-            });
+            // Setup personInfo state based on what fields exist
+            const personInfoData: { name?: string; title?: string } = {};
+            
+            if (person.name) {
+              personInfoData.name = person.name;
+              setValue("personName", person.name);
+            }
+            
+            if (person.title) {
+              personInfoData.title = person.title;
+              setValue("personTitle", person.title);
+            }
+            
+            setPersonInfo(personInfoData);
+            
+            // Set appropriate message if needed
+            if (!person.name) {
+              setLinkedInError("Profile found but name is missing. Please enter a name below.");
+            }
           } else {
+            setPersonInfo(null);
+            setValue("personName", "");
+            setValue("personTitle", "");
             setLinkedInError("Could not fetch profile information. Please continue with the review.");
           }
         } catch (error) {
           console.error("Error fetching LinkedIn profile:", error);
+          setPersonInfo(null);
+          setValue("personName", "");
+          setValue("personTitle", "");
           setLinkedInError("Error fetching profile. Please continue with the review.");
         } finally {
           setIsCheckingLinkedIn(false);
@@ -119,17 +143,36 @@ export default function ReviewPage() {
       try {
         const person = await getPersonByLinkedInUrl(currentLinkedInUrl);
         if (person && !person.error) {
-          setPersonInfo({
-            name: person.name || "",
-            title: person.title || "",
-          });
+          // Setup personInfo state based on what fields exist
+          const personInfoData: { name?: string; title?: string } = {};
+          
+          if (person.name) {
+            personInfoData.name = person.name;
+            setValue("personName", person.name);
+          }
+          
+          if (person.title) {
+            personInfoData.title = person.title;
+            setValue("personTitle", person.title);
+          }
+          
+          setPersonInfo(personInfoData);
+          
+          // Set appropriate message if needed
+          if (!person.name) {
+            setLinkedInError("Profile found but name is missing. Please enter a name below.");
+          }
         } else {
           setPersonInfo(null);
+          setValue("personName", "");
+          setValue("personTitle", "");
           setLinkedInError("Could not fetch profile information. You can still submit your review.");
         }
       } catch (error) {
         console.error("Error fetching LinkedIn profile:", error);
         setPersonInfo(null);
+        setValue("personName", "");
+        setValue("personTitle", "");
         setLinkedInError("Error fetching profile. You can still submit your review.");
       } finally {
         setIsCheckingLinkedIn(false);
@@ -142,7 +185,7 @@ export default function ReviewPage() {
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [currentLinkedInUrl, linkedinUrl]);
+  }, [currentLinkedInUrl, linkedinUrl, setValue]);
 
   async function onSubmit(data: z.infer<typeof reviewSchema>) {
     setError(null);
@@ -150,6 +193,13 @@ export default function ReviewPage() {
     setIsLoading(true);
 
     try {
+      // Ensure name is provided
+      if (!personInfo?.name && !data.personName) {
+        setError("Person's name is required to submit a review.");
+        setIsLoading(false);
+        return;
+      }
+
       data.tags = selectedTags;
       const result = await createReview(data);
 
@@ -225,15 +275,75 @@ export default function ReviewPage() {
               {linkedInError && (
                 <p className="text-amber-600 text-sm mt-1">{linkedInError}</p>
               )}
-              {personInfo && (
+              {personInfo && personInfo.name && (
                 <div className="mt-2 p-3 bg-blue-50 rounded-md">
-                  <p className="font-medium">{personInfo.name}</p>
+                  <p className="font-medium">Profile found: {personInfo.name}</p>
                   {personInfo.title && (
                     <p className="text-sm text-gray-600">{personInfo.title}</p>
                   )}
+                  <p className="text-xs mt-1 text-blue-600">
+                    This profile is already in our database.
+                  </p>
+                </div>
+              )}
+              {personInfo && !personInfo.name && personInfo.title && (
+                <div className="mt-2 p-3 bg-amber-50 rounded-md">
+                  <p className="text-sm text-gray-600">Position: {personInfo.title}</p>
+                  <p className="text-xs mt-1 text-amber-600">
+                    Please provide a name for this profile.
+                  </p>
+                </div>
+              )}
+              {personInfo && !personInfo.name && !personInfo.title && (
+                <div className="mt-2 p-3 bg-amber-50 rounded-md">
+                  <p className="text-sm text-amber-600">
+                    New profile. Please provide name and position details.
+                  </p>
                 </div>
               )}
               <FormMessage>{errors.linkedinUrl?.message}</FormMessage>
+            </FormControl>
+            
+            <FormControl>
+              <FormLabel htmlFor="personName">Person's Name</FormLabel>
+              <Input
+                id="personName"
+                placeholder="Enter the person's name"
+                {...register("personName")}
+                className={errors.personName ? "border-red-500" : ""}
+                disabled={isLoading || (personInfo && !!personInfo.name)}
+              />
+              {personInfo && personInfo.name ? (
+                <FormDescription>
+                  Name is automatically populated from existing profile and cannot be changed.
+                </FormDescription>
+              ) : (
+                <FormDescription>
+                  Please provide the person's full name.
+                </FormDescription>
+              )}
+              <FormMessage>{errors.personName?.message}</FormMessage>
+            </FormControl>
+            
+            <FormControl>
+              <FormLabel htmlFor="personTitle">Position / Title <span className="text-gray-500 text-sm">(Optional)</span></FormLabel>
+              <Input
+                id="personTitle"
+                placeholder="Enter the person's job title or position"
+                {...register("personTitle")}
+                className={errors.personTitle ? "border-red-500" : ""}
+                disabled={isLoading || (personInfo && !!personInfo.title)}
+              />
+              {personInfo && personInfo.title ? (
+                <FormDescription>
+                  Title is automatically populated from existing profile and cannot be changed.
+                </FormDescription>
+              ) : (
+                <FormDescription>
+                  E.g., "Software Engineer", "Product Manager", etc.
+                </FormDescription>
+              )}
+              <FormMessage>{errors.personTitle?.message}</FormMessage>
             </FormControl>
             
             <FormControl>
@@ -278,6 +388,27 @@ export default function ReviewPage() {
                 <FormMessage>{errors.interactionDate.message}</FormMessage>
               )}
             </FormControl>
+            
+            <FormControl>
+              <div className="flex items-start py-2">
+                <div className="flex items-center h-5">
+                  <input
+                    id="isAnonymous"
+                    type="checkbox"
+                    className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-blue-300"
+                    {...register("isAnonymous")}
+                  />
+                </div>
+                <div className="ml-3 text-sm">
+                  <label htmlFor="isAnonymous" className="text-gray-600 font-medium">
+                    Post this review anonymously
+                  </label>
+                  <p className="text-gray-500 text-xs mt-1">
+                    Your name won't be displayed with this review. The review will still be associated with your account, but only you and admins can see that you wrote it.
+                  </p>
+                </div>
+              </div>
+            </FormControl>
 
             <FormControl>
               <FormLabel>Tags (Optional)</FormLabel>
@@ -316,7 +447,11 @@ export default function ReviewPage() {
             </FormControl>
           </div>
           
-          <Button type="submit" className="w-full py-2.5" disabled={isLoading}>
+          <Button 
+            type="submit" 
+            className="w-full py-2.5 border border-blue-700 shadow-sm hover:shadow-md transition-all" 
+            disabled={isLoading}
+          >
             {isLoading ? "Submitting..." : "Submit Review"}
           </Button>
         </form>
