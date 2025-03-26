@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { calculateAverageRating } from "@/lib/utils";
 import Link from "next/link";
 import { StarRating } from "@/components/StarRating";

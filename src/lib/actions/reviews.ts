@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { reviewSchema, reportSchema } from "@/lib/validations";
 import { z } from "zod";
 import { getSession } from "@/lib/session";
