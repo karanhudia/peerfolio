@@ -108,6 +108,8 @@ model Review {
   
   tags        Tag[]
   reports     Report[]
+
+  @@unique([authorId, personId])
 }
 
 // Tag model for categorizing reviews

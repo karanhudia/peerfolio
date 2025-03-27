@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { reviewSchema } from "@/lib/validations";
-import { createReview, getPersonByLinkedInUrl } from "@/lib/actions/reviews";
+import { createReview, getPersonByLinkedInUrl, getUserReviewForPerson, updateReview } from "@/lib/actions/reviews";
 import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,8 @@ export default function ReviewPage() {
   const [personInfo, setPersonInfo] = useState<{ name?: string; title?: string } | null>(null);
   const [isCheckingLinkedIn, setIsCheckingLinkedIn] = useState(false);
   const [linkedInError, setLinkedInError] = useState<string | null>(null);
+  const [existingReview, setExistingReview] = useState<any | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const {
     register,
@@ -155,6 +157,8 @@ export default function ReviewPage() {
       setIsCheckingLinkedIn(true);
       setLinkedinUrl(currentLinkedInUrl);
       setLinkedInError(null);
+      setExistingReview(null);
+      setIsEditMode(false);
       
       try {
         const person = await getPersonByLinkedInUrl(currentLinkedInUrl);
@@ -182,6 +186,29 @@ export default function ReviewPage() {
             if (!person.name) {
               setLinkedInError("This profile exists in our database but needs a name. Please provide one below.");
             }
+            
+            // Check if user has already reviewed this person
+            if (person.id && session?.user) {
+              const userReview = await getUserReviewForPerson(person.id);
+              if (userReview) {
+                setExistingReview(userReview);
+                setIsEditMode(true);
+                
+                // Pre-fill form with existing review data
+                setValue("rating", userReview.rating);
+                setValue("relationship", userReview.relationship);
+                setValue("content", userReview.content);
+                setValue("isAnonymous", userReview.isAnonymous);
+                
+                // Set tags
+                if (userReview.tags && userReview.tags.length > 0) {
+                  const tagNames = userReview.tags.map((tag: any) => tag.name);
+                  setSelectedTags(tagNames);
+                }
+                
+                setLinkedInError("You have already reviewed this person. You can edit your review below.");
+              }
+            }
           } else {
             setLinkedInError("New LinkedIn profile. Please complete the details below.");
           }
@@ -208,7 +235,7 @@ export default function ReviewPage() {
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [currentLinkedInUrl, linkedinUrl, setValue]);
+  }, [currentLinkedInUrl, linkedinUrl, setValue, session]);
 
   async function onSubmit(data: z.infer<typeof reviewSchema>) {
     setError(null);
@@ -224,7 +251,40 @@ export default function ReviewPage() {
       }
       
       data.tags = selectedTags;
-      const result = await createReview(data);
+      
+      let result;
+      if (isEditMode && existingReview) {
+        // Update existing review
+        result = await updateReview(existingReview.id, data);
+      } else {
+        // Create new review
+        result = await createReview(data);
+        
+        // If we get back an existingReviewId, the user has already reviewed this person
+        if (result.existingReviewId) {
+          // Switch to edit mode and fetch the existing review
+          const person = await getPersonByLinkedInUrl(data.linkedinUrl);
+          if (person && person.id) {
+            const userReview = await getUserReviewForPerson(person.id);
+            if (userReview) {
+              setExistingReview(userReview);
+              setIsEditMode(true);
+              
+              // Pre-fill form with existing review data
+              setValue("rating", userReview.rating);
+              setValue("relationship", userReview.relationship);
+              setValue("content", userReview.content);
+              setValue("isAnonymous", userReview.isAnonymous);
+              
+              // Set tags
+              if (userReview.tags && userReview.tags.length > 0) {
+                const tagNames = userReview.tags.map((tag: any) => tag.name);
+                setSelectedTags(tagNames);
+              }
+            }
+          }
+        }
+      }
 
       if (result.error) {
         setError(result.error);
@@ -292,7 +352,9 @@ export default function ReviewPage() {
 
   return (
     <div className="container max-w-2xl py-10">
-      <h1 className="text-2xl font-bold mb-6">Write a Review</h1>
+      <h1 className="text-2xl font-bold mb-6">
+        {isEditMode ? "Edit Your Review" : "Write a Review"}
+      </h1>
       
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md mb-6">
@@ -324,13 +386,18 @@ export default function ReviewPage() {
                   placeholder="https://linkedin.com/in/username"
                   {...register("linkedinUrl")}
                   className={errors.linkedinUrl ? "border-red-500" : ""}
-                  disabled={isLoading}
+                  disabled={isLoading || isEditMode}
                 />
                 {isCheckingLinkedIn && (
                   <p className="text-blue-600 text-sm mt-1">Checking profile...</p>
                 )}
-                {linkedInError && (
+                {linkedInError && !isEditMode && (
                   <p className="text-amber-600 text-sm mt-1">{linkedInError}</p>
+                )}
+                {isEditMode && (
+                  <p className="text-blue-600 text-sm mt-1">
+                    You are editing your review for this person.
+                  </p>
                 )}
                 {personInfo && personInfo.name && (
                   <div className="mt-2 p-3 bg-blue-50 rounded-md">
@@ -505,7 +572,7 @@ export default function ReviewPage() {
             className="w-full py-3" 
             disabled={isLoading}
           >
-            {isLoading ? "Submitting..." : "Submit Review"}
+            {isLoading ? "Submitting..." : isEditMode ? "Update Review" : "Submit Review"}
           </Button>
         </form>
       )}

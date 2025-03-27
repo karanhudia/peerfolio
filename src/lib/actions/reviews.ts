@@ -68,6 +68,21 @@ export async function createReview(values: z.infer<typeof reviewSchema>) {
         data: { title: personTitle }
       });
     }
+
+    // Check if the user has already reviewed this person
+    const existingReview = await prisma.review.findFirst({
+      where: {
+        authorId: session.user.id,
+        personId: person.id,
+      },
+    });
+
+    if (existingReview) {
+      return { 
+        error: "You have already reviewed this person. You can edit your existing review instead.",
+        existingReviewId: existingReview.id 
+      };
+    }
     
     // Create the review
     const review = await prisma.review.create({
@@ -122,6 +137,114 @@ export async function createReview(values: z.infer<typeof reviewSchema>) {
   } catch (error) {
     console.error("Error creating review:", error);
     return { error: "Error submitting review. Please try again later." };
+  }
+}
+
+export async function updateReview(reviewId: string, values: z.infer<typeof reviewSchema>) {
+  const session = await getSession();
+  
+  if (!session?.user?.id) {
+    return { error: "You must be logged in to update a review." };
+  }
+  
+  try {
+    // Verify that the review belongs to the current user
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+      include: { person: true }
+    });
+    
+    if (!review) {
+      return { error: "Review not found." };
+    }
+    
+    if (review.authorId !== session.user.id) {
+      return { error: "You can only edit your own reviews." };
+    }
+    
+    const validatedFields = reviewSchema.safeParse(values);
+    
+    if (!validatedFields.success) {
+      return { error: "Invalid fields. Please check your input." };
+    }
+    
+    const { isAnonymous, relationship, rating, content, tags } = validatedFields.data;
+    
+    // Update the review
+    await prisma.review.update({
+      where: { id: reviewId },
+      data: {
+        rating,
+        content,
+        relationship,
+        isAnonymous,
+        updatedAt: new Date(),
+      },
+    });
+    
+    // Update tags
+    if (tags) {
+      // First, disconnect all existing tags
+      await prisma.review.update({
+        where: { id: reviewId },
+        data: {
+          tags: {
+            set: [], // Clear all existing connections
+          },
+        },
+      });
+      
+      // Then add the new tags
+      for (const tagName of tags) {
+        let tag = await prisma.tag.findUnique({
+          where: { name: tagName },
+        });
+        
+        if (!tag) {
+          tag = await prisma.tag.create({
+            data: { name: tagName },
+          });
+        }
+        
+        await prisma.review.update({
+          where: { id: reviewId },
+          data: {
+            tags: {
+              connect: { id: tag.id },
+            },
+          },
+        });
+      }
+    }
+    
+    revalidatePath(`/person/${review.person.id}`);
+    return { success: "Review updated successfully!" };
+  } catch (error) {
+    console.error("Error updating review:", error);
+    return { error: "Error updating review. Please try again later." };
+  }
+}
+
+export async function getUserReviewForPerson(personId: string) {
+  const session = await getSession();
+  
+  if (!session?.user?.id) {
+    return null;
+  }
+  
+  try {
+    return await prisma.review.findFirst({
+      where: {
+        authorId: session.user.id,
+        personId: personId,
+      },
+      include: {
+        tags: true,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching user review:", error);
+    return null;
   }
 }
 
