@@ -5,7 +5,7 @@ import { reviewSchema, reportSchema } from "@/lib/validations";
 import { z } from "zod";
 import { getSession } from "@/lib/session";
 import { revalidatePath } from "next/cache";
-import { normalizeLinkedInUrl } from "@/lib/linkedin-utils";
+import { normalizeLinkedInUrl, isSelfReview } from "@/lib/linkedin-utils";
 
 export async function createReview(values: z.infer<typeof reviewSchema>) {
   const session = await getSession();
@@ -26,6 +26,12 @@ export async function createReview(values: z.infer<typeof reviewSchema>) {
   const linkedinUrl = normalizeLinkedInUrl(rawUrl) || rawUrl;
   
   try {
+    // Check if user is trying to review themselves using the utility function
+    const selfReviewCheck = await isSelfReview(session.user.id, linkedinUrl);
+    if (selfReviewCheck.isSelf) {
+      return { error: selfReviewCheck.error };
+    }
+    
     // Check if the person already exists in our database
     let person = await prisma.person.findUnique({
       where: {
@@ -168,7 +174,21 @@ export async function updateReview(reviewId: string, values: z.infer<typeof revi
       return { error: "Invalid fields. Please check your input." };
     }
     
-    const { isAnonymous, relationship, rating, content, tags } = validatedFields.data;
+    const { linkedinUrl: rawUrl, isAnonymous, relationship, rating, content, tags } = validatedFields.data;
+    
+    // Normalize the LinkedIn URL
+    const linkedinUrl = normalizeLinkedInUrl(rawUrl) || rawUrl;
+    
+    // Check if user is trying to review themselves using the utility function
+    const selfReviewCheck = await isSelfReview(session.user.id, linkedinUrl);
+    if (selfReviewCheck.isSelf) {
+      return { error: selfReviewCheck.error };
+    }
+    
+    // Ensure the LinkedIn URL hasn't changed
+    if (linkedinUrl !== review.person.linkedinUrl) {
+      return { error: "You cannot change the LinkedIn URL when updating a review." };
+    }
     
     // Update the review
     await prisma.review.update({
