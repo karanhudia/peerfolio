@@ -9,13 +9,13 @@ import { StarRating } from "@/components/StarRating";
 
 export async function generateMetadata({ params }: { params: { id: string } }) {
   const person = await getPersonById(params.id);
-  
+
   if (!person) {
     return {
       title: "Profile Not Found",
     };
   }
-  
+
   return {
     title: `${person.name || extractLinkedInUsername(person.linkedinUrl) || "Professional"}'s Profile | PeerFolio`,
     description: `View reviews and feedback for ${person.name || "this professional"} on PeerFolio.`,
@@ -25,14 +25,14 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
 export default async function PersonPage({ params }: { params: { id: string } }) {
   const person = await getPersonById(params.id);
   const currentUser = await getCurrentUser();
-  
+
   if (!person) {
     notFound();
   }
-  
+
   const ratings = person.reviews.map((review) => review.rating);
   const averageRating = calculateAverageRating(ratings);
-  
+
   // Group reviews by tags
   const tagCounts: Record<string, number> = {};
   person.reviews.forEach((review) => {
@@ -40,12 +40,12 @@ export default async function PersonPage({ params }: { params: { id: string } })
       tagCounts[tag.name] = (tagCounts[tag.name] || 0) + 1;
     });
   });
-  
+
   // Sort tags by frequency
   const sortedTags = Object.entries(tagCounts)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 5);
-  
+
   return (
     <div className="container py-10">
       <div className="grid md:grid-cols-3 gap-8">
@@ -56,9 +56,9 @@ export default async function PersonPage({ params }: { params: { id: string } })
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-2xl">
                 {person.name ? person.name.charAt(0).toUpperCase() : "?"}
               </div>
-              <Link 
-                href={person.linkedinUrl} 
-                target="_blank" 
+              <Link
+                href={person.linkedinUrl}
+                target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-600 hover:underline flex items-center"
               >
@@ -68,29 +68,29 @@ export default async function PersonPage({ params }: { params: { id: string } })
                 <span className="inline-block">View LinkedIn</span>
               </Link>
             </div>
-            
+
             <h1 className="text-2xl font-bold">
               {person.name || extractLinkedInUsername(person.linkedinUrl) || "Professional"}
             </h1>
-            
+
             {person.title && (
               <p className="text-gray-600">{person.title}</p>
             )}
-            
+
             <div className="mt-4 pt-4 border-t">
               <div className="flex items-center mb-2">
                 <div className="text-2xl font-bold text-blue-600 mr-2">{averageRating.toFixed(1)}</div>
                 <StarRating rating={averageRating} readOnly size="md" />
                 <div className="text-gray-500 text-sm ml-2">({person.reviews.length} reviews)</div>
               </div>
-              
+
               {sortedTags.length > 0 && (
                 <div className="mt-4">
                   <h3 className="text-sm font-medium text-gray-700 mb-2">Top Skills</h3>
                   <div className="flex flex-wrap gap-2">
                     {sortedTags.map(([tag, count]) => (
-                      <span 
-                        key={tag} 
+                      <span
+                        key={tag}
                         className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs whitespace-normal"
                       >
                         {tag} ({count})
@@ -101,7 +101,7 @@ export default async function PersonPage({ params }: { params: { id: string } })
               )}
             </div>
           </div>
-          
+
           {currentUser && (
             <div className="card bg-blue-50 border-blue-100">
               <h3 className="font-medium mb-2">Share your experience</h3>
@@ -114,12 +114,12 @@ export default async function PersonPage({ params }: { params: { id: string } })
             </div>
           )}
         </div>
-        
+
         {/* Reviews Section */}
         <div className="md:col-span-2">
           <div className="bg-white rounded-lg border p-6 mb-6">
             <h2 className="text-xl font-bold mb-4">Reviews ({person.reviews.length})</h2>
-            
+
             {person.reviews.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-500">No reviews yet. Be the first to leave a review!</p>
@@ -136,24 +136,20 @@ export default async function PersonPage({ params }: { params: { id: string } })
                             as {review.relationship}
                           </span>
                         </div>
-                        
+
                         <p className="text-sm text-gray-500 mt-1">
                           By {review.isAnonymous ? "Anonymous" : (review.author.name || "User")} on {formatDate(review.createdAt)}
                         </p>
                       </div>
-                      
-                      <p className="text-sm text-gray-500">
-                        Interaction date: {formatDate(review.interactionDate)}
-                      </p>
                     </div>
-                    
+
                     <p className="text-gray-700 my-3 whitespace-pre-line">{review.content}</p>
-                    
+
                     {review.tags.length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-3">
                         {review.tags.map((tag) => (
-                          <span 
-                            key={tag.id} 
+                          <span
+                            key={tag.id}
                             className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs"
                           >
                             {tag.name}
@@ -161,10 +157,10 @@ export default async function PersonPage({ params }: { params: { id: string } })
                         ))}
                       </div>
                     )}
-                    
+
                     {currentUser && currentUser.id !== review.author.id && (
                       <div className="mt-3 text-right">
-                        <Link 
+                        <Link
                           href={`/report?reviewId=${review.id}`}
                           className="text-sm text-gray-500 hover:text-red-600"
                         >
@@ -181,4 +177,4 @@ export default async function PersonPage({ params }: { params: { id: string } })
       </div>
     </div>
   );
-} 
+}
