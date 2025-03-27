@@ -161,6 +161,18 @@ export default function ReviewPage() {
       setIsEditMode(false);
 
       try {
+        // First check if this is the user's own LinkedIn URL
+        if (session?.user?.id) {
+          const response = await fetch(`/api/user/${session.user.id}/linkedin`);
+          const data = await response.json();
+
+          if (data.linkedinUrl && normalizeLinkedInUrl(data.linkedinUrl) === normalizeLinkedInUrl(currentLinkedInUrl)) {
+            setLinkedInError("You cannot review yourself.");
+            setIsCheckingLinkedIn(false);
+            return;
+          }
+        }
+
         const person = await getPersonByLinkedInUrl(currentLinkedInUrl);
         if (person && !person.error) {
           // Check if this is an existing profile in our database (has an ID)
@@ -287,7 +299,7 @@ export default function ReviewPage() {
       }
 
       if (result.error) {
-        setError(result.error);
+        setLinkedInError(result.error);
         setIsLoading(false);
         return;
       }
@@ -391,9 +403,6 @@ export default function ReviewPage() {
                 {isCheckingLinkedIn && (
                   <p className="text-blue-600 text-sm mt-1">Checking profile...</p>
                 )}
-                {linkedInError && !isEditMode && !linkedInError.includes('New') && (
-                  <p className="text-amber-600 text-sm mt-1">{linkedInError}</p>
-                )}
                 {isEditMode && (
                   <p className="text-blue-600 text-sm mt-1">
                     You are editing your review for this person.
@@ -410,7 +419,7 @@ export default function ReviewPage() {
                     </p>
                   </div>
                 )}
-                {linkedInError && !personInfo?.name && (
+                {linkedInError && !isEditMode && (
                   <div className="mt-2 p-3 bg-amber-50 rounded-md">
                     <p className="text-sm text-amber-600">
                       {linkedInError}

@@ -9,39 +9,56 @@ import { normalizeLinkedInUrl } from "@/lib/linkedin-utils";
 
 export async function createReview(values: z.infer<typeof reviewSchema>) {
   const session = await getSession();
-  
+
   if (!session?.user?.id) {
     return { error: "You must be logged in to submit a review." };
   }
-  
+
   const validatedFields = reviewSchema.safeParse(values);
-  
+
   if (!validatedFields.success) {
     return { error: "Invalid fields. Please check your input." };
   }
-  
+
   const { linkedinUrl: rawUrl, personName, personTitle, isAnonymous, relationship, rating, content, tags } = validatedFields.data;
-  
+
   // Normalize LinkedIn URL
-  const linkedinUrl = normalizeLinkedInUrl(rawUrl) || rawUrl;
-  
+  const normalizedUrl = normalizeLinkedInUrl(rawUrl);
+  if (!normalizedUrl) {
+    return { error: "Please enter a valid LinkedIn profile URL." };
+  }
+
+  // Get the current user's LinkedIn URL
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { linkedinUrl: true }
+  });
+
+  // Normalize user's LinkedIn URL if it exists
+  const normalizedUserUrl = user?.linkedinUrl ? normalizeLinkedInUrl(user.linkedinUrl) : null;
+
+  // Check if user is trying to review themselves
+  if (normalizedUserUrl && normalizedUserUrl === normalizedUrl) {
+    return { error: "You cannot review yourself." };
+  }
+
   try {
     // Check if the person already exists in our database
     let person = await prisma.person.findUnique({
       where: {
-        linkedinUrl,
+        linkedinUrl: normalizedUrl,
       },
     });
-    
+
     // If not, create a new person record with the provided name or generated info
     if (!person) {
       // Use provided name and title
       let name = personName;
       let title = personTitle || undefined;
-      
+
       person = await prisma.person.create({
         data: {
-          linkedinUrl,
+          linkedinUrl: normalizedUrl,
           name,
           title,
         },
@@ -50,12 +67,12 @@ export async function createReview(values: z.infer<typeof reviewSchema>) {
     // If person exists but doesn't have a name and personName is provided, update it
     else if (!person.name && personName) {
       const updateData: any = { name: personName };
-      
+
       // If person doesn't have a title and personTitle is provided, update that too
       if (!person.title && personTitle) {
         updateData.title = personTitle;
       }
-      
+
       person = await prisma.person.update({
         where: { id: person.id },
         data: updateData
@@ -78,12 +95,12 @@ export async function createReview(values: z.infer<typeof reviewSchema>) {
     });
 
     if (existingReview) {
-      return { 
+      return {
         error: "You have already reviewed this person. You can edit your existing review instead.",
-        existingReviewId: existingReview.id 
+        existingReviewId: existingReview.id
       };
     }
-    
+
     // Create the review
     const review = await prisma.review.create({
       data: {
@@ -105,7 +122,7 @@ export async function createReview(values: z.infer<typeof reviewSchema>) {
         isApproved: true,
       },
     });
-    
+
     // Add tags if provided
     if (tags && tags.length > 0) {
       for (const tagName of tags) {
@@ -113,13 +130,13 @@ export async function createReview(values: z.infer<typeof reviewSchema>) {
         let tag = await prisma.tag.findUnique({
           where: { name: tagName },
         });
-        
+
         if (!tag) {
           tag = await prisma.tag.create({
             data: { name: tagName },
           });
         }
-        
+
         // Connect the tag to the review
         await prisma.review.update({
           where: { id: review.id },
@@ -131,7 +148,7 @@ export async function createReview(values: z.infer<typeof reviewSchema>) {
         });
       }
     }
-    
+
     revalidatePath(`/person/${person.id}`);
     return { success: "Review submitted successfully!" };
   } catch (error) {
@@ -142,34 +159,34 @@ export async function createReview(values: z.infer<typeof reviewSchema>) {
 
 export async function updateReview(reviewId: string, values: z.infer<typeof reviewSchema>) {
   const session = await getSession();
-  
+
   if (!session?.user?.id) {
     return { error: "You must be logged in to update a review." };
   }
-  
+
   try {
     // Verify that the review belongs to the current user
     const review = await prisma.review.findUnique({
       where: { id: reviewId },
       include: { person: true }
     });
-    
+
     if (!review) {
       return { error: "Review not found." };
     }
-    
+
     if (review.authorId !== session.user.id) {
       return { error: "You can only edit your own reviews." };
     }
-    
+
     const validatedFields = reviewSchema.safeParse(values);
-    
+
     if (!validatedFields.success) {
       return { error: "Invalid fields. Please check your input." };
     }
-    
+
     const { isAnonymous, relationship, rating, content, tags } = validatedFields.data;
-    
+
     // Update the review
     await prisma.review.update({
       where: { id: reviewId },
@@ -181,7 +198,7 @@ export async function updateReview(reviewId: string, values: z.infer<typeof revi
         updatedAt: new Date(),
       },
     });
-    
+
     // Update tags
     if (tags) {
       // First, disconnect all existing tags
@@ -193,19 +210,19 @@ export async function updateReview(reviewId: string, values: z.infer<typeof revi
           },
         },
       });
-      
+
       // Then add the new tags
       for (const tagName of tags) {
         let tag = await prisma.tag.findUnique({
           where: { name: tagName },
         });
-        
+
         if (!tag) {
           tag = await prisma.tag.create({
             data: { name: tagName },
           });
         }
-        
+
         await prisma.review.update({
           where: { id: reviewId },
           data: {
@@ -216,7 +233,7 @@ export async function updateReview(reviewId: string, values: z.infer<typeof revi
         });
       }
     }
-    
+
     revalidatePath(`/person/${review.person.id}`);
     return { success: "Review updated successfully!" };
   } catch (error) {
@@ -227,11 +244,11 @@ export async function updateReview(reviewId: string, values: z.infer<typeof revi
 
 export async function getUserReviewForPerson(personId: string) {
   const session = await getSession();
-  
+
   if (!session?.user?.id) {
     return null;
   }
-  
+
   try {
     return await prisma.review.findFirst({
       where: {
@@ -252,7 +269,7 @@ export async function getPersonByLinkedInUrl(linkedinUrl: string) {
   try {
     // Normalize the LinkedIn URL
     const normalizedUrl = normalizeLinkedInUrl(linkedinUrl) || linkedinUrl;
-    
+
     // Try to find the person in the database
     let person = await prisma.person.findUnique({
       where: { linkedinUrl: normalizedUrl },
@@ -269,24 +286,23 @@ export async function getPersonByLinkedInUrl(linkedinUrl: string) {
             },
             tags: true,
           },
-          orderBy: { createdAt: "desc" },
         },
       },
     });
-    
-    // If person exists, just return them with the id field
-    if (person) {
-      return person;
+
+    if (!person) {
+      // If person not found, return minimal info
+      return { linkedinUrl: normalizedUrl, reviews: [] };
     }
-    
-    // If person doesn't exist in the database, return object without id
-    return {
-      linkedinUrl: normalizedUrl,
-      reviews: [],
-    };
+
+    return person;
   } catch (error) {
-    console.error("Error fetching person:", error);
-    return null;
+    console.error('Debug - Error in getPersonByLinkedInUrl:', error);
+    if (error instanceof Error) {
+      console.error('Debug - Error message:', error.message);
+      console.error('Debug - Error stack:', error.stack);
+    }
+    return { error: "Error fetching profile" };
   }
 }
 
@@ -319,7 +335,7 @@ export async function getPersonById(id: string) {
 
 export async function searchPeople(query: string) {
   if (!query || query.length < 2) return [];
-  
+
   try {
     return await prisma.person.findMany({
       where: {
@@ -344,19 +360,19 @@ export async function searchPeople(query: string) {
 
 export async function reportReview(values: z.infer<typeof reportSchema>) {
   const session = await getSession();
-  
+
   if (!session?.user?.id) {
     return { error: "You must be logged in to report a review." };
   }
-  
+
   const validatedFields = reportSchema.safeParse(values);
-  
+
   if (!validatedFields.success) {
     return { error: "Invalid fields. Please check your input." };
   }
-  
+
   const { reason, reviewId } = validatedFields.data;
-  
+
   try {
     await prisma.report.create({
       data: {
@@ -373,10 +389,10 @@ export async function reportReview(values: z.infer<typeof reportSchema>) {
         },
       },
     });
-    
+
     return { success: "Review reported successfully. Our team will review it." };
   } catch (error) {
     console.error("Error reporting review:", error);
     return { error: "Error reporting review. Please try again later." };
   }
-} 
+}
