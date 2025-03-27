@@ -45,7 +45,7 @@ export default function ReviewPage() {
   const searchParams = useSearchParams();
   const initialUrlParam = searchParams.get("linkedin") || "";
   const initialLinkedInUrl = normalizeLinkedInUrl(initialUrlParam) || initialUrlParam;
-  
+
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -79,7 +79,7 @@ export default function ReviewPage() {
 
   const currentLinkedInUrl = watch("linkedinUrl");
   const currentRating = watch("rating");
-  
+
   // Check if user is authenticated
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -91,7 +91,7 @@ export default function ReviewPage() {
   useEffect(() => {
     if (initialLinkedInUrl && initialLinkedInUrl.includes("linkedin.com/in/")) {
       setValue("linkedinUrl", initialLinkedInUrl);
-      
+
       // Fetch person info for the passed LinkedIn URL
       const fetchPerson = async () => {
         setIsCheckingLinkedIn(true);
@@ -101,22 +101,22 @@ export default function ReviewPage() {
           if (person && !person.error) {
             // Check if this is an existing profile in our database (has an ID)
             const isExistingProfile = !!person.id;
-            
+
             // Setup personInfo state based on what fields exist
             const personInfoData: { name?: string; title?: string } = {};
-            
+
             if (person.name) {
               personInfoData.name = person.name;
               setValue("personName", person.name);
             }
-            
+
             if (person.title) {
               personInfoData.title = person.title;
               setValue("personTitle", person.title);
             }
-            
+
             setPersonInfo(personInfoData);
-            
+
             // Set appropriate message based on profile status
             if (isExistingProfile) {
               if (!person.name) {
@@ -141,7 +141,7 @@ export default function ReviewPage() {
           setIsCheckingLinkedIn(false);
         }
       };
-      
+
       fetchPerson();
     }
   }, [initialLinkedInUrl, setValue]);
@@ -150,62 +150,62 @@ export default function ReviewPage() {
   useEffect(() => {
     const fetchPersonInfo = async () => {
       if (!currentLinkedInUrl || currentLinkedInUrl === linkedinUrl) return;
-      
+
       // Only proceed if URL is likely valid
       if (!currentLinkedInUrl.includes("linkedin.com/in/")) return;
-      
+
       setIsCheckingLinkedIn(true);
       setLinkedinUrl(currentLinkedInUrl);
       setLinkedInError(null);
       setExistingReview(null);
       setIsEditMode(false);
-      
+
       try {
         const person = await getPersonByLinkedInUrl(currentLinkedInUrl);
         if (person && !person.error) {
           // Check if this is an existing profile in our database (has an ID)
           const isExistingProfile = !!person.id;
-          
+
           // Setup personInfo state based on what fields exist
           const personInfoData: { name?: string; title?: string } = {};
-          
+
           if (person.name) {
             personInfoData.name = person.name;
             setValue("personName", person.name);
           }
-          
+
           if (person.title) {
             personInfoData.title = person.title;
             setValue("personTitle", person.title);
           }
-          
+
           setPersonInfo(personInfoData);
-          
+
           // Set appropriate message based on profile status
           if (isExistingProfile) {
             if (!person.name) {
               setLinkedInError("This profile exists in our database but needs a name. Please provide one below.");
             }
-            
+
             // Check if user has already reviewed this person
             if (person.id && session?.user) {
               const userReview = await getUserReviewForPerson(person.id);
               if (userReview) {
                 setExistingReview(userReview);
                 setIsEditMode(true);
-                
+
                 // Pre-fill form with existing review data
                 setValue("rating", userReview.rating);
                 setValue("relationship", userReview.relationship);
                 setValue("content", userReview.content);
                 setValue("isAnonymous", userReview.isAnonymous);
-                
+
                 // Set tags
                 if (userReview.tags && userReview.tags.length > 0) {
                   const tagNames = userReview.tags.map((tag: any) => tag.name);
                   setSelectedTags(tagNames);
                 }
-                
+
                 setLinkedInError("You have already reviewed this person. You can edit your review below.");
               }
             }
@@ -249,9 +249,9 @@ export default function ReviewPage() {
         setIsLoading(false);
         return;
       }
-      
+
       data.tags = selectedTags;
-      
+
       let result;
       if (isEditMode && existingReview) {
         // Update existing review
@@ -259,7 +259,7 @@ export default function ReviewPage() {
       } else {
         // Create new review
         result = await createReview(data);
-        
+
         // If we get back an existingReviewId, the user has already reviewed this person
         if (result.existingReviewId) {
           // Switch to edit mode and fetch the existing review
@@ -269,13 +269,13 @@ export default function ReviewPage() {
             if (userReview) {
               setExistingReview(userReview);
               setIsEditMode(true);
-              
+
               // Pre-fill form with existing review data
               setValue("rating", userReview.rating);
               setValue("relationship", userReview.relationship);
               setValue("content", userReview.content);
               setValue("isAnonymous", userReview.isAnonymous);
-              
+
               // Set tags
               if (userReview.tags && userReview.tags.length > 0) {
                 const tagNames = userReview.tags.map((tag: any) => tag.name);
@@ -355,13 +355,13 @@ export default function ReviewPage() {
       <h1 className="text-2xl font-bold mb-6">
         {isEditMode ? "Edit Your Review" : "Write a Review"}
       </h1>
-      
+
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md mb-6">
           {error}
         </div>
       )}
-      
+
       {success && (
         <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-md mb-6">
           {success}
@@ -372,12 +372,12 @@ export default function ReviewPage() {
           </div>
         </div>
       )}
-      
+
       {!success && (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           <div className="card p-6">
             <h2 className="text-lg font-medium mb-6">Professional Information</h2>
-            
+
             <div className="space-y-5">
               <FormControl>
                 <FormLabel htmlFor="linkedinUrl">LinkedIn Profile URL</FormLabel>
@@ -391,7 +391,7 @@ export default function ReviewPage() {
                 {isCheckingLinkedIn && (
                   <p className="text-blue-600 text-sm mt-1">Checking profile...</p>
                 )}
-                {linkedInError && !isEditMode && (
+                {linkedInError && !isEditMode && !linkedInError.includes('New') && (
                   <p className="text-amber-600 text-sm mt-1">{linkedInError}</p>
                 )}
                 {isEditMode && (
@@ -419,7 +419,7 @@ export default function ReviewPage() {
                 )}
                 <FormMessage>{errors.linkedinUrl?.message}</FormMessage>
               </FormControl>
-              
+
               <FormControl>
                 <FormLabel htmlFor="personName">Person's Name</FormLabel>
                 <Input
@@ -440,7 +440,7 @@ export default function ReviewPage() {
                 )}
                 <FormMessage>{errors.personName?.message}</FormMessage>
               </FormControl>
-              
+
               <FormControl>
                 <FormLabel htmlFor="personTitle">Position / Title <span className="text-gray-500 text-sm">(Optional)</span></FormLabel>
                 <Input
@@ -461,7 +461,7 @@ export default function ReviewPage() {
                 )}
                 <FormMessage>{errors.personTitle?.message}</FormMessage>
               </FormControl>
-              
+
               <FormControl>
                 <FormLabel htmlFor="relationship">Your Relationship</FormLabel>
                 <div className="mt-1">
@@ -483,13 +483,13 @@ export default function ReviewPage() {
                 <FormLabel htmlFor="rating">Rating</FormLabel>
                 <div className="mt-1 mb-4">
                   <div className="cursor-pointer">
-                    <StarRating 
-                      rating={currentRating} 
-                      onChange={handleRatingChange} 
-                      size="lg" 
+                    <StarRating
+                      rating={currentRating}
+                      onChange={handleRatingChange}
+                      size="lg"
                     />
                   </div>
-                  
+
                   {/* Improved rating scale with emojis and text labels */}
                   <div className="flex mt-2">
                     <div className="w-1/2 flex items-center gap-1">
@@ -565,11 +565,11 @@ export default function ReviewPage() {
               </FormControl>
             </div>
           </div>
-          
-          <Button 
-            type="submit" 
+
+          <Button
+            type="submit"
             variant="enhanced"
-            className="w-full py-3" 
+            className="w-full py-3"
             disabled={isLoading}
           >
             {isLoading ? "Submitting..." : isEditMode ? "Update Review" : "Submit Review"}
@@ -578,4 +578,4 @@ export default function ReviewPage() {
       )}
     </div>
   );
-} 
+}
