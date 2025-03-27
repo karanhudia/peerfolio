@@ -13,19 +13,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectOption } from "@/components/ui/select";
 import { FormControl, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { StarRating } from "@/components/StarRating";
-import { normalizeLinkedInUrl, isSelfReviewClient } from "@/lib/linkedin-utils";
+import { normalizeLinkedInUrl } from "@/lib/linkedin-utils";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-
-// Define the person interface to make TypeScript happy
-interface Person {
-  id?: string;
-  linkedinUrl: string;
-  name?: string;
-  title?: string;
-  reviews: any[];
-  error?: string;
-}
 
 // Relationship options
 const relationshipOptions = [
@@ -90,77 +80,6 @@ export default function ReviewPage() {
   const currentLinkedInUrl = watch("linkedinUrl");
   const currentRating = watch("rating");
 
-  // Check for self-review attempts in real time as the user types
-  useEffect(() => {
-    let isMounted = true;
-    const fetchUserLinkedIn = async () => {
-      if (!session?.user?.id || !currentLinkedInUrl) return;
-
-      // Skip the check if the URL isn't a complete LinkedIn URL yet
-      if (!currentLinkedInUrl.includes("linkedin.com/in/")) return;
-
-      try {
-        // Set checking state first before any API calls
-        setIsCheckingLinkedIn(true);
-        
-        // Make API call to get the user's LinkedIn URL from the database
-        const response = await fetch(`/api/user/${session.user.id}/linkedin`);
-        
-        // If component unmounted during fetch, don't update state
-        if (!isMounted) return;
-        
-        if (!response.ok) {
-          setIsCheckingLinkedIn(false);
-          return;
-        }
-        
-        const data = await response.json();
-        
-        // If component unmounted during fetch, don't update state
-        if (!isMounted) return;
-        
-        if (!data.linkedinUrl) {
-          setIsCheckingLinkedIn(false);
-          return;
-        }
-        
-        // Use the client utility to check for self-review
-        const { isSelf, error } = isSelfReviewClient(data.linkedinUrl, currentLinkedInUrl);
-        
-        if (isSelf) {
-          // Clear any existing person info first
-          setPersonInfo(null);
-          setValue("personName", "");
-          setValue("personTitle", "");
-          
-          // Then set the error
-          setLinkedInError(error);
-        } else if (linkedInError === "You cannot write a review about yourself.") {
-          // Clear the error if it was previously set but the URL is now valid
-          setLinkedInError(null);
-          setError(null); // Also clear any form-level errors that might have been set
-        }
-      } catch (error) {
-        console.error("Error fetching user LinkedIn URL:", error);
-      } finally {
-        // Only clear checking state if component is still mounted
-        if (isMounted) {
-          setIsCheckingLinkedIn(false);
-        }
-      }
-    };
-
-    // Add a small delay to prevent checking on every keystroke
-    const timer = setTimeout(() => {
-      fetchUserLinkedIn();
-    }, 300);
-
-    return () => {
-      isMounted = false;
-      clearTimeout(timer);
-    };
-  }, [currentLinkedInUrl, session?.user?.id, setValue, linkedInError, setError]);
-
   // Check if user is authenticated
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -172,25 +91,13 @@ export default function ReviewPage() {
   useEffect(() => {
     if (initialLinkedInUrl && initialLinkedInUrl.includes("linkedin.com/in/")) {
       setValue("linkedinUrl", initialLinkedInUrl);
-      
-      // The real-time validation effect will already trigger with this setValue call
-      // so we don't need to duplicate the self-review check here
-      
+
       // Fetch person info for the passed LinkedIn URL
       const fetchPerson = async () => {
-        // Skip fetching if the real-time validation detected a self-review
-        if (linkedInError === "You cannot write a review about yourself.") return;
-        
         setIsCheckingLinkedIn(true);
-        
-        // We don't clear linkedInError here anymore since we want to keep self-review errors
-        if (linkedInError !== "You cannot write a review about yourself.") {
-          setLinkedInError(null);
-        }
-        
+        setLinkedInError(null);
         try {
-          // Self-review check is now handled by the real-time validation useEffect
-          const person = await getPersonByLinkedInUrl(initialLinkedInUrl) as Person;
+          const person = await getPersonByLinkedInUrl(initialLinkedInUrl);
           if (person && !person.error) {
             // Check if this is an existing profile in our database (has an ID)
             const isExistingProfile = !!person.id;
@@ -237,66 +144,24 @@ export default function ReviewPage() {
 
       fetchPerson();
     }
-  }, [initialLinkedInUrl, setValue, session, linkedInError]);
+  }, [initialLinkedInUrl, setValue]);
 
   // Fetch LinkedIn profile info when URL changes
   useEffect(() => {
-    let isMounted = true;
     const fetchPersonInfo = async () => {
       if (!currentLinkedInUrl || currentLinkedInUrl === linkedinUrl) return;
-      
+
       // Only proceed if URL is likely valid
       if (!currentLinkedInUrl.includes("linkedin.com/in/")) return;
-      
-      // Don't fetch if we already know it's a self-review
-      if (linkedInError === "You cannot write a review about yourself.") return;
-      
-      // Set checking state first
+
       setIsCheckingLinkedIn(true);
       setLinkedinUrl(currentLinkedInUrl);
-      
-      // We don't clear linkedInError here anymore since we want to keep self-review errors
-      if (linkedInError !== "You cannot write a review about yourself.") {
-        setLinkedInError(null);
-      }
-      
+      setLinkedInError(null);
       setExistingReview(null);
       setIsEditMode(false);
-      
+
       try {
-        // First check if it's a self-review - do this before any other API calls
-        if (session?.user?.id) {
-          const response = await fetch(`/api/user/${session.user.id}/linkedin`);
-          
-          // If component unmounted during fetch, don't update state
-          if (!isMounted) return;
-          
-          if (response.ok) {
-            const data = await response.json();
-            
-            // If component unmounted during fetch, don't update state
-            if (!isMounted) return;
-            
-            if (data.linkedinUrl) {
-              const { isSelf, error } = isSelfReviewClient(data.linkedinUrl, currentLinkedInUrl);
-              if (isSelf) {
-                setPersonInfo(null);
-                setValue("personName", "");
-                setValue("personTitle", "");
-                setLinkedInError(error);
-                setIsCheckingLinkedIn(false);
-                return; // Exit early - don't proceed with further API calls
-              }
-            }
-          }
-        }
-        
-        // Only fetch person info if it's not a self-review
-        const person = await getPersonByLinkedInUrl(currentLinkedInUrl) as Person;
-        
-        // If component unmounted during fetch, don't update state
-        if (!isMounted) return;
-        
+        const person = await getPersonByLinkedInUrl(currentLinkedInUrl);
         if (person && !person.error) {
           // Check if this is an existing profile in our database (has an ID)
           const isExistingProfile = !!person.id;
@@ -325,10 +190,6 @@ export default function ReviewPage() {
             // Check if user has already reviewed this person
             if (person.id && session?.user) {
               const userReview = await getUserReviewForPerson(person.id);
-              
-              // If component unmounted during fetch, don't update state
-              if (!isMounted) return;
-              
               if (userReview) {
                 setExistingReview(userReview);
                 setIsEditMode(true);
@@ -359,30 +220,22 @@ export default function ReviewPage() {
         }
       } catch (error) {
         console.error("Error fetching LinkedIn profile:", error);
-        if (isMounted) {
-          setPersonInfo(null);
-          setValue("personName", "");
-          setValue("personTitle", "");
-          setLinkedInError("Error fetching profile. Please enter the details manually.");
-        }
+        setPersonInfo(null);
+        setValue("personName", "");
+        setValue("personTitle", "");
+        setLinkedInError("Error fetching profile. Please enter the details manually.");
       } finally {
-        // Only clear checking state if component is still mounted
-        if (isMounted) {
-          setIsCheckingLinkedIn(false);
-        }
+        setIsCheckingLinkedIn(false);
       }
     };
 
-    // Use a debounce to prevent excessive API calls during typing
+    // Debounce the fetch to avoid too many requests
     const timer = setTimeout(() => {
       fetchPersonInfo();
     }, 800);
 
-    return () => {
-      isMounted = false;
-      clearTimeout(timer);
-    };
-  }, [currentLinkedInUrl, linkedinUrl, setValue, session, linkedInError]);
+    return () => clearTimeout(timer);
+  }, [currentLinkedInUrl, linkedinUrl, setValue, session]);
 
   async function onSubmit(data: z.infer<typeof reviewSchema>) {
     setError(null);
@@ -410,7 +263,7 @@ export default function ReviewPage() {
         // If we get back an existingReviewId, the user has already reviewed this person
         if (result.existingReviewId) {
           // Switch to edit mode and fetch the existing review
-          const person = await getPersonByLinkedInUrl(data.linkedinUrl) as Person;
+          const person = await getPersonByLinkedInUrl(data.linkedinUrl);
           if (person && person.id) {
             const userReview = await getUserReviewForPerson(person.id);
             if (userReview) {
@@ -532,27 +385,14 @@ export default function ReviewPage() {
                   id="linkedinUrl"
                   placeholder="https://linkedin.com/in/username"
                   {...register("linkedinUrl")}
-                  className={
-                    errors.linkedinUrl 
-                      ? "border-red-500" 
-                      : linkedInError === "You cannot write a review about yourself."
-                        ? "border-red-400 bg-red-50"
-                        : ""
-                  }
+                  className={errors.linkedinUrl ? "border-red-500" : ""}
                   disabled={isLoading || isEditMode}
                 />
                 {isCheckingLinkedIn && (
                   <p className="text-blue-600 text-sm mt-1">Checking profile...</p>
                 )}
-                {linkedInError === "You cannot write a review about yourself." && (
-                  <div className="mt-2 p-3 bg-red-50 rounded-md border border-red-200" data-test-id="self-review-error">
-                    <p className="text-red-600">
-                      <strong>Error:</strong> {linkedInError}
-                    </p>
-                    <p className="text-sm text-red-500 mt-1">
-                      To maintain the integrity of our review system, we don't allow users to review their own profiles.
-                    </p>
-                  </div>
+                {linkedInError && !isEditMode && !linkedInError.includes('New') && (
+                  <p className="text-amber-600 text-sm mt-1">{linkedInError}</p>
                 )}
                 {isEditMode && (
                   <p className="text-blue-600 text-sm mt-1">
@@ -570,11 +410,7 @@ export default function ReviewPage() {
                     </p>
                   </div>
                 )}
-                {/* Display all other LinkedIn error messages, including New LinkedIn profile */}
-                {linkedInError && 
-                  linkedInError !== "You cannot write a review about yourself." && 
-                  !isEditMode && 
-                  (!personInfo || !personInfo.name) && (
+                {linkedInError && !personInfo?.name && (
                   <div className="mt-2 p-3 bg-amber-50 rounded-md">
                     <p className="text-sm text-amber-600">
                       {linkedInError}
@@ -734,7 +570,7 @@ export default function ReviewPage() {
             type="submit"
             variant="enhanced"
             className="w-full py-3"
-            disabled={isLoading || linkedInError === "You cannot write a review about yourself."}
+            disabled={isLoading}
           >
             {isLoading ? "Submitting..." : isEditMode ? "Update Review" : "Submit Review"}
           </Button>
