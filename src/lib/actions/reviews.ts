@@ -185,7 +185,15 @@ export async function updateReview(reviewId: string, values: z.infer<typeof revi
       return { error: "Invalid fields. Please check your input." };
     }
 
-    const { isAnonymous, relationship, rating, content, tags } = validatedFields.data;
+    const { personTitle, isAnonymous, relationship, rating, content, tags } = validatedFields.data;
+
+    // Update person's title if provided and not already set
+    if (personTitle && !review.person.title) {
+      await prisma.person.update({
+        where: { id: review.person.id },
+        data: { title: personTitle }
+      });
+    }
 
     // Update the review
     await prisma.review.update({

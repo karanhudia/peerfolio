@@ -140,7 +140,6 @@ async function main() {
           rating,
           relationship,
           content: `${person.name} was an excellent ${relationship}. They were very knowledgeable and supportive. I really appreciated their guidance and would highly recommend working with them.`,
-          interactionDate: new Date(Date.now() - Math.floor(Math.random() * 10000000000)),
           isApproved: true,
           author: {
             connect: { id: user.id },
