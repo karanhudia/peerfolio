@@ -306,9 +306,6 @@ export default function ReviewPage() {
 
       if (result.success) {
         setSuccess(result.success);
-        setTimeout(() => {
-          router.push("/");
-        }, 2000);
       }
     } catch (error) {
       setError("An error occurred. Please try again.");
